@@ -1,5 +1,4 @@
 (define-module blake3
-;  (use srfi-207)
   (use gauche.uvector)
   (extend util.digest)
   (export <blake3>))
@@ -16,11 +15,11 @@
 (define-method initialize ((self <blake3>) initargs)
   (next-method)
   (let1 ctx (make <blake3-context>)
-    (if-let1 key (get-keyword :keyed initargs #f)
-       (%blake3-hasher-init-keyed ctx key)
-       (if-let1 context (get-keyword :context initargs #f)
-         (%blake3-hasher-init-derive-key-raw ctx context)
-         (%blake3-hasher-init ctx)))
+    (cond ((get-keyword :keyed initargs #f)
+           => (^[key] (%blake3-hasher-init-keyed ctx key)))
+          ((get-keyword :context initargs #f)
+           => (^[context] (%blake3-hasher-init-derive-key-raw ctx context)))
+          (else (%blake3-hasher-init ctx)))
     (slot-set! self 'context ctx)))
 
 (define-method digest-update! ((self <blake3>) data)
@@ -105,9 +104,3 @@
                                       SCM_STRING_COPYING)))))
 
  )
-  
-#|
-gosh tools/precomp -e teststub.scm
-gcc -fPIC -shared -o teststub.so teststub.c -I /usr/lib/gauche-0.98/0.9.15/include -I ~/src/b3sum-c ~/src/b3sum-c/libblake3.a
-gosh -I. testteststub.scm
-|#
