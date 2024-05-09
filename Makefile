@@ -30,8 +30,9 @@ ARCHFILES = blake3.$(SOEXT)
 SCMFILES  = $(srcdir)/blake3.scm
 HEADERS   =
 
-CFLAGS = -fPIC -O2 -DBLAKE3_NO_SSE2 -DBLAKE3_NO_SSE41 -DBLAKE3_NO_AVX2 -DBLAKE3_NO_AVX512
+CFLAGS = -fPIC -O2 -DPACKAGE_URL= -DPACKAGE_BUGREPORT= -DPACKAGE_TARNAME=\"blake3\" -DPACKAGE_STRING= -DPACKAGE_NAME=\"blake3\" -DPACKAGE_VERSION=\"0.1\"
 BLAKE3_OBJ = c/blake3.o c/blake3_dispatch.o c/blake3_portable.o
+BLAKE3_OBJ += c/blake3_sse2.o c/blake3_sse41.o c/blake3_avx2.o c/blake3_avx512.o
 
 TARGET    = $(ARCHFILES) $(BLAKE3_OBJ)
 GENERATED = 
@@ -49,9 +50,14 @@ blake3.$(SOEXT): $(srcdir)/blake3.scm $(BLAKE3_OBJ)
 	$(GAUCHE_PACKAGE) compile \
 	  --local=$(LOCAL_PATHS) --cflags="-Ic" --libs "$(BLAKE3_OBJ)" --verbose blake3 blake3.c
 
+c/blake3_sse2.o : CFLAGS+=-msse2
+c/blake3_sse41.o : CFLAGS+=-msse4.1
+c/blake3_avx2.o : CFLAGS+=-mavx2
+c/blake3_avx512.o : CFLAGS+=-mavx512f -mavx512vl
+c/blake3_neon.o : 
+
 check : all
-	@rm -f test.log
-	$(GOSH) -I. -I$(srcdir) $(srcdir)/test.scm > test.log
+	$(GOSH) -I. $(srcdir)/test.scm > test.log
 
 install : all
 	$(INSTALL) -m 444 -T $(GAUCHE_PKGINCDIR) $(HEADERS)
@@ -67,10 +73,10 @@ uninstall :
 
 clean :
 	$(GAUCHE_PACKAGE) compile --clean blake3 blake3.c
-	rm -rf core $(TARGET) $(GENERATED) *~ test*.log so_locations
+	rm -f core $(TARGET) $(GENERATED) test.log
 
 distclean : clean
-	rm -rf $(CONFIG_GENERATED)
+	rm -f $(CONFIG_GENERATED)
 
 maintainer-clean : clean
-	rm -rf $(CONFIG_GENERATED) VERSION
+	rm -f $(CONFIG_GENERATED) VERSION
