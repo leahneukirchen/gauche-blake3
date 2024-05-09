@@ -16,7 +16,9 @@
 (define-method initialize ((self <blake3>) initargs)
   (next-method)
   (let1 ctx (make <blake3-context>)
-    (%blake3-hasher-init ctx)
+    (if-let1 key (get-keyword :keyed initargs #f)
+       (%blake3-hasher-init-keyed ctx key)
+       (%blake3-hasher-init ctx))
     (slot-set! self 'context ctx)))
 
 (define-method digest-update! ((self <blake3>) data)
@@ -67,7 +69,14 @@
 
  (define-cproc %blake3-hasher-init (ctx::<blake3-context>) ::<void>
    (blake3_hasher_init (& (-> ctx ctx))))
- 
+
+ (define-cproc %blake3-hasher-init-keyed (ctx::<blake3-context> key) ::<void>
+   (unless (and (SCM_U8VECTORP key)
+                (== (SCM_U8VECTOR_SIZE (SCM_U8VECTOR key)) BLAKE3_KEY_LEN))
+     (Scm_Error "invalid key"))
+   (blake3_hasher_init_keyed (& (-> ctx ctx))
+                             (SCM_UVECTOR_ELEMENTS (SCM_U8VECTOR key))))
+
  (define-cproc %blake3-hasher-update (ctx::<blake3-context> data) ::<void>
    (blake3_hasher_update (& (-> ctx ctx))
                          (cast (const unsigned char*)

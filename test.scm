@@ -4,7 +4,7 @@
 (use rfc.json)
 (use rfc.base64)
 
-(test-start "blake3: hash mode")
+(test-start "blake3")
 (use blake3)
 (test-module 'blake3)
 
@@ -13,6 +13,11 @@
 
 (define (b3hex-len s len)
   (let1 ctx (make <blake3>)
+    (digest-update! ctx s)
+    (base16-encode-message (digest-final! ctx len) :lowercase #t)))
+
+(define (b3hex-len-keyed s key len)
+  (let1 ctx (make <blake3> :keyed key)
     (digest-update! ctx s)
     (base16-encode-message (digest-final! ctx len) :lowercase #t)))
 
@@ -54,7 +59,7 @@
   (test* "invalid digest length" (test-error) (digest-final! ctx -1))
   (test* "invalid digest length" (test-error) (digest-final! ctx 'foo)))
 
-(test-section "official test vectors")
+(test-section "official test vectors: hashed")
 
 (define test-vectors
   (parameterize ([json-object-handler (cut alist->hash-table <> 'string=?)])
@@ -75,6 +80,22 @@
      (test* #"input-len ~input-len full"
             expected-hash
             (b3hex-len input (/ (string-length expected-hash) 2)))))
+ (~ test-vectors "cases"))
+
+(test-section "official test vectors: keyed")
+
+(for-each
+ (^[case]
+   (let* ((input-len (~ case "input_len"))
+          (expected-hash (~ case "keyed_hash"))
+          (input (make-u8vector input-len)))
+     (u8vector-multi-copy! input 0
+                           (u8vector-length input-template) input-template)
+     (test* #"input-len ~input-len full"
+            expected-hash
+            (b3hex-len-keyed input
+                             (string->u8vector (~ test-vectors "key"))
+                             (/ (string-length expected-hash) 2)))))
  (~ test-vectors "cases"))
 
 (test-section "incremental api")
