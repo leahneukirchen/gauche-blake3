@@ -21,6 +21,11 @@
     (digest-update! ctx s)
     (base16-encode-message (digest-final! ctx len) :lowercase #t)))
 
+(define (b3hex-len-derived s context len)
+  (let1 ctx (make <blake3> :context context)
+    (digest-update! ctx s)
+    (base16-encode-message (digest-final! ctx len) :lowercase #t)))
+
 (test-section "simple test vectors")
 
 (test* "empty string"
@@ -96,6 +101,22 @@
             (b3hex-len-keyed input
                              (string->u8vector (~ test-vectors "key"))
                              (/ (string-length expected-hash) 2)))))
+ (~ test-vectors "cases"))
+
+(test-section "official test vectors: derived")
+
+(for-each
+ (^[case]
+   (let* ((input-len (~ case "input_len"))
+          (expected-hash (~ case "derive_key"))
+          (input (make-u8vector input-len)))
+     (u8vector-multi-copy! input 0
+                           (u8vector-length input-template) input-template)
+     (test* #"input-len ~input-len full"
+            expected-hash
+            (b3hex-len-derived input
+                               (~ test-vectors "context_string")
+                               (/ (string-length expected-hash) 2)))))
  (~ test-vectors "cases"))
 
 (test-section "incremental api")
