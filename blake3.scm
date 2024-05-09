@@ -27,10 +27,10 @@
              (<string> (string->u8vector data))
              (else (error "cannot hash this:" data)))))
 
-(define-method digest-final! ((self <blake3>))
-  (%blake3-hasher-finalize (slot-ref self'context)))
+(define-method digest-final! ((self <blake3>) :optional (length 32))
+  (%blake3-hasher-finalize (slot-ref self'context) length))
 
-(define-method digest ((class <blake3-meta>))
+(define-method digest ((class <blake3-meta>) :optional (length 32))
   (let* ((ctx (make <blake3-context>))
          (bufsiz (* 64 1024))
          (buf (make-u8vector bufsiz)))
@@ -38,7 +38,7 @@
     (let loop ()
       (let ((len (read-uvector! buf)))
         (cond ((eof-object? len)
-               (%blake3-hasher-finalize ctx))
+               (%blake3-hasher-finalize ctx length))
               ((< len bufsiz)
                (%blake3-hasher-update ctx (uvector-alias <u8vector> buf 0 len))
                (loop))
@@ -74,11 +74,13 @@
                                (SCM_UVECTOR_ELEMENTS (SCM_U8VECTOR data)))
                          (SCM_U8VECTOR_SIZE (SCM_U8VECTOR data))))
 
-  (define-cproc %blake3-hasher-finalize (ctx::<blake3-context>)
-    (let* ([digest::(.array (unsigned char) (BLAKE3_OUT_LEN))])
-      (blake3_hasher_finalize (& (-> ctx ctx)) digest BLAKE3_OUT_LEN)
-      (return (Scm_MakeString (cast (const char*) digest)
-                              BLAKE3_OUT_LEN BLAKE3_OUT_LEN
+  (define-cproc %blake3-hasher-finalize (ctx::<blake3-context> length)
+    (unless (SCM_UINTP length)
+      (SCM_TYPE_ERROR length "positive <fixnum>"))
+    (let* ([len::size_t (SCM_INT_VALUE length)]
+           [digest::(.array (unsigned char) (len))])
+      (blake3_hasher_finalize (& (-> ctx ctx)) digest len)
+      (return (Scm_MakeString (cast (const char*) digest) len len
                               (logior SCM_STRING_INCOMPLETE
                                       SCM_STRING_COPYING)))))
 
