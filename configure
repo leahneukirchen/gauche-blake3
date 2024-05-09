@@ -1,6 +1,40 @@
 #!/usr/bin/env gosh
+;; -*- gauche -*-
 ;; Run ./configure (or gosh ./configure) to generate Makefiles.
 
 (use gauche.configure)
 (cf-init-gauche-extension)
+
+(define (has-flag? flag)
+  (cf-msg-checking "checking for compiler flag ~a" flag)
+  (with-cf-subst ((CFLAGS flag))
+    (rlet1 result (cf-try-compile "" "")
+      (cf-msg-result (if result "yes" "no")))))
+
+(cf-subst 'ADD_OBJ "")
+
+(if (has-flag? "-msse2")
+    (cf-subst-append 'ADD_OBJ "c/blake3_sse2.o")
+    (cf-define 'BLAKE3_NO_SSE2))
+
+(if (has-flag? "-msse4.1")
+    (cf-subst-append 'ADD_OBJ "c/blake3_sse41.o")
+    (cf-define 'BLAKE3_NO_SSE41))
+
+(if (has-flag? "-mavx2")
+    (cf-subst-append 'ADD_OBJ "c/blake3_avx2.o")
+    (cf-define 'BLAKE3_NO_AVX2))
+
+(if (has-flag? "-mavx512vl")
+    (cf-subst-append 'ADD_OBJ "c/blake3_avx512.o")
+    (cf-define 'BLAKE3_NO_AVX512))
+
+(when (has-flag? "-mfpu=neon-vfpv4") ;; isn't checked on runtime
+  (cf-subst-append 'ADD_OBJ "c/blake3_neon.o")
+  (cf-define 'BLAKE3_USE_NEON))
+
+(cf-define 'PACKAGE_STRING "")
+(cf-define 'PACKAGE_BUGREPORT "")
+(cf-define 'PACKAGE_URL "")
+
 (cf-output-default)
