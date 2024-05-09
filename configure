@@ -1,0 +1,6 @@
+#!/usr/bin/env gosh
+;; Run ./configure (or gosh ./configure) to generate Makefiles.
+
+(use gauche.configure)
+(cf-init-gauche-extension)
+(cf-output-default)
